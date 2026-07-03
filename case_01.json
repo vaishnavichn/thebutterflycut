@@ -1,0 +1,123 @@
+{
+  "id": "case_01",
+  "title": "The Midnight Serenade",
+  "setting": "The Lumina Gallery — a prestigious private art gallery",
+  "premise": "A priceless masterpiece, 'Midnight Serenade', has been stolen from the highly secure private vault at the Lumina Gallery. In its place lies a masterful forgery. Simultaneously, a young, innocent child has been found unconscious in the gallery courtyard. The security logs show no alarms, and the biometric entries reveal only routine personnel visits. This is an inside job.",
+  "suspects": [
+    {
+      "id": "curator",
+      "name": "Eleanor Voss",
+      "role": "Gallery Curator",
+      "alibi": "I left the building at 11:00 PM according to the front desk sign-out sheet, before the vault was even sealed for the night.",
+      "secret": "She is terrified of professional ruin and came back at 1:00 AM to fetch her forgotten planner, but she insists she was home all night.",
+      "contradiction": "She insists she was home all night after 11 PM, but she is highly defensive and hiding her brief middle-of-the-night return.",
+      "contradictionTrigger": "Signout Sheet",
+      "verbal_tell": "adjusts her pearl necklace nervously whenever her departure time is brought up",
+      "unrelated_secret": "She is secretly interviewing for a director position at a rival gallery in London.",
+      "emotional_state": "Poised but highly defensive"
+    },
+    {
+      "id": "cleaner",
+      "name": "Rosa Delgado",
+      "role": "Night Cleaner",
+      "alibi": "I was cleaning the east wing, on the opposite side of the building, from 2:30 AM to 3:15 AM.",
+      "secret": "She found a discarded prototype frame in the east wing trash and took it, fearing she would be blamed for stealing.",
+      "contradiction": "Her shift log places her in the east wing during the heist, confirming she had no access to the vault.",
+      "contradictionTrigger": "Cleaning Schedule",
+      "verbal_tell": "crosses her arms tightly and sighs heavily whenever shifts are mentioned",
+      "unrelated_secret": "She takes leftover gourmet catering food home to feed her family.",
+      "emotional_state": "Resentful and exhausted"
+    },
+    {
+      "id": "nanny",
+      "name": "Priya Kapoor",
+      "role": "Family Nanny",
+      "alibi": "I was on a phone call with the family's driver from 2:45 AM to 3:05 AM, confirmed by call records.",
+      "secret": "She fell asleep for 10 minutes before her phone call and feels immense guilt for leaving the child unattended.",
+      "contradiction": "Her phone call records confirm her alibi during the exact time of the alarm.",
+      "contradictionTrigger": "Nanny Phone Log",
+      "verbal_tell": "speaks in a rapid, hushed stammer and wrings her hands constantly",
+      "unrelated_secret": "She was secretly texting the driver about plans to find a new job.",
+      "emotional_state": "Anxious and guilt-ridden"
+    },
+    {
+      "id": "security",
+      "name": "Marcus Reyes",
+      "role": "Head of Security",
+      "alibi": "I was in the security booth monitoring cameras all night, except for a routine maintenance check of the west wing.",
+      "secret": "He was bribed by a private art collector to swap the painting for a forgery, and used the child's routine vault visit as cover. When the child startled him, he pushed and restrained them to avoid discovery.",
+      "contradiction": "His badge log reveals he disabled the west wing motion sensors at 2:50 AM, right before the heist, contradicting a standard non-disabling patrol.",
+      "contradictionTrigger": "Security Maintenance Note",
+      "verbal_tell": "speaks in flat, overly formal military protocol and maintains unblinking eye contact",
+      "unrelated_secret": "He has a chronic gambling debt of seventy thousand dollars.",
+      "emotional_state": "Calm and cold"
+    }
+  ],
+  "rooms": {
+    "Vault": {
+      "name": "Vault",
+      "description": "The private viewing vault. Biometric scanner still blinking green — it never flagged the swap.",
+      "occupant": null,
+      "clue_ids": ["vault_scanner_log"]
+    },
+    "Storage_Room": {
+      "name": "Storage Room",
+      "description": "Where the child was found. A single overturned display crate lies nearby.",
+      "occupant": null,
+      "clue_ids": ["storage_crate", "storage_footprint"]
+    },
+    "Security_Booth": {
+      "name": "Security Booth",
+      "description": "Bank of monitors, mostly dark screens for the west wing.",
+      "occupant": "security",
+      "clue_ids": ["security_maintenance_note"]
+    },
+    "Front_Desk": {
+      "name": "Front Desk",
+      "description": "Visitor sign-out sheet still open on the counter.",
+      "occupant": null,
+      "clue_ids": ["signout_sheet"]
+    },
+    "East_Wing": {
+      "name": "East Wing",
+      "description": "Cleaning cart parked mid-hallway, half-restocked.",
+      "occupant": "cleaner",
+      "clue_ids": ["cleaning_schedule"]
+    },
+    "West_Wing": {
+      "name": "West Wing",
+      "description": "Motion sensor housing left slightly ajar on one panel.",
+      "occupant": null,
+      "clue_ids": ["sensor_panel"]
+    },
+    "Curators_Office": {
+      "name": "Curator's Office",
+      "description": "Neat desk, a half-drafted resignation letter tucked under a folder.",
+      "occupant": "curator",
+      "clue_ids": ["draft_letter"]
+    },
+    "Break_Room": {
+      "name": "Break Room",
+      "description": "A phone charger still plugged in at the corner table.",
+      "occupant": null,
+      "clue_ids": []
+    },
+    "Main_Hall": {
+      "name": "Main Hall",
+      "description": "Where the family and staff gathered after the alarm.",
+      "occupant": "nanny",
+      "clue_ids": ["nanny_phone_log"]
+    }
+  },
+  "clues": {
+    "vault_scanner_log": "The biometric log shows only the child's badge that night — no other entries, meaning whoever swapped the painting either had no badge on file or bypassed the scanner entirely.",
+    "storage_crate": "The crate was used for shipping the original painting in — its lid was pried open recently, consistent with concealing the real canvas during transport out.",
+    "storage_footprint": "A single partial boot print near the crate, size and tread inconsistent with the family or the nanny's footwear.",
+    "security_maintenance_note": "A logged 'routine maintenance' entry for the west wing sensors at 2:50 AM — no maintenance ticket exists in the system for that night.",
+    "signout_sheet": "Gallery_Curator's signature confirms she left at 11:00 PM, well before the vault was sealed.",
+    "cleaning_schedule": "Night_Cleaner's assigned zone that night was strictly the east wing — corroborated by a supervisor's handwritten schedule.",
+    "sensor_panel": "The panel shows manual override markings, requiring physical keycard access — not remote tampering.",
+    "draft_letter": "An unfinished resignation letter, dated a week ago, addressed to a rival gallery. Unrelated to the theft but explains Gallery_Curator's nervous evasiveness.",
+    "nanny_phone_log": "Call records confirm Family_Nanny was on the phone with the family driver from 2:45 AM to 3:05 AM."
+  }
+}

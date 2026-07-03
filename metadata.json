@@ -1,0 +1,6 @@
+{
+  "name": "The Butterfly Effect: Infinite Noir",
+  "description": "An immersive real-time 3D first-person atmospheric detective game set in Lumina Gallery, with dense volumetric fog, dynamic flashlight interaction, suspect roleplay, and persistent Cognee graphs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
