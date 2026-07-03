@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { to3DCoords } from './GalleryBuilding';
 import { WALLS } from '../world/galleryMap';
 
+const DEBUG = false;
+
 // -------------------------------------------------------------
 // WEB AUDIO API ATMOSPHERIC SYNTHESIZER
 // -------------------------------------------------------------
@@ -107,12 +109,86 @@ class GameAudio {
       osc.stop(this.ctx.currentTime + 0.7);
     } catch (e) {}
   }
+
+  // Dissonant alarm sting for wrong accusations
+  playWrongAccusation() {
+    if (!this.ctx || this.ctx.state === 'suspended') return;
+    try {
+      // Layer 1: harsh dissonant chord (tritone interval)
+      const osc1 = this.ctx.createOscillator();
+      const osc2 = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(185, this.ctx.currentTime); // F#3
+      osc1.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.8);
+
+      osc2.type = 'square';
+      osc2.frequency.setValueAtTime(262, this.ctx.currentTime); // C4 — tritone against F#
+      osc2.frequency.exponentialRampToValueAtTime(155, this.ctx.currentTime + 0.8);
+
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.0);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2000, this.ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.8);
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc1.start();
+      osc2.start();
+      osc1.stop(this.ctx.currentTime + 1.0);
+      osc2.stop(this.ctx.currentTime + 1.0);
+
+      // Layer 2: sharp noise burst
+      const bufferSize = this.ctx.sampleRate * 0.15;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.5;
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+      noise.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
+      noise.start();
+    } catch (e) {}
+  }
+
+  // Triumphant chime for correct accusation
+  playCorrectAccusation() {
+    if (!this.ctx || this.ctx.state === 'suspended') return;
+    try {
+      const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6 — major arpeggio
+      notes.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx!.currentTime + i * 0.12);
+        gain.gain.setValueAtTime(0, this.ctx!.currentTime);
+        gain.gain.linearRampToValueAtTime(0.06, this.ctx!.currentTime + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx!.currentTime + i * 0.12 + 0.6);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(this.ctx!.currentTime + i * 0.12);
+        osc.stop(this.ctx!.currentTime + i * 0.12 + 0.7);
+      });
+    } catch (e) {}
+  }
 }
 
 export const gameAudio = new GameAudio();
 
 // Simple 2D AABB bounding box check
-function checkCollision(px: number, py: number): boolean {
+function checkCollision(px: number, py: number, currentDoors: any[] = []): boolean {
   const pSize = 12; // player radius
   const minX = px - pSize;
   const maxX = px + pSize;
@@ -134,6 +210,23 @@ function checkCollision(px: number, py: number): boolean {
       return true;
     }
   }
+
+  // Check closed doors
+  for (const door of currentDoors) {
+    if (!door.isOpen) {
+      const wHalfW = door.width / 2;
+      const wHalfH = door.height / 2;
+      const wMinX = door.x - wHalfW;
+      const wMaxX = door.x + wHalfW;
+      const wMinY = door.y - wHalfH;
+      const wMaxY = door.y + wHalfH;
+
+      if (minX < wMaxX && maxX > wMinX && minY < wMaxY && maxY > wMinY) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -143,6 +236,7 @@ interface Player3DProps {
   player3DPosRef: React.RefObject<THREE.Vector3 | null>;
   playerYawRef: React.MutableRefObject<number>;
   playerPitchRef: React.MutableRefObject<number>;
+  doors: Array<{ id: string; isOpen: boolean; x: number; y: number; width: number; height: number }>;
 }
 
 export default function Player3D({
@@ -150,9 +244,12 @@ export default function Player3D({
   isChatOpen,
   player3DPosRef,
   playerYawRef,
-  playerPitchRef
+  playerPitchRef,
+  doors
 }: Player3DProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const spotLightRef = useRef<THREE.SpotLight>(null);
+  const spotLightTargetRef = useRef<THREE.Object3D>(null);
 
   const playerPosRef = useRef({ x: 400, y: 380 }); // Spawn at Main Hall, offset from NPCs
   const keysRef = useRef({
@@ -163,6 +260,11 @@ export default function Player3D({
   const isMouseDown = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const stepTimer = useRef(0);
+  const doorsRef = useRef(doors);
+
+  useEffect(() => {
+    doorsRef.current = doors;
+  }, [doors]);
 
   // Initialize Web Audio upon interaction
   useEffect(() => {
@@ -232,7 +334,7 @@ export default function Player3D({
         isMouseDown.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
         
-        console.log('[Player3D] Pointer lock requested on canvas click');
+        if (DEBUG) console.log('[Player3D] Pointer lock requested on canvas click');
         // Request pointer lock for first-person look-around
         try {
           const promise = canvas.requestPointerLock() as any;
@@ -332,10 +434,10 @@ export default function Player3D({
       const nextX = playerPosRef.current.x + dx;
       const nextY = playerPosRef.current.y + dy;
 
-      if (!checkCollision(nextX, playerPosRef.current.y)) {
+      if (!checkCollision(nextX, playerPosRef.current.y, doorsRef.current)) {
         playerPosRef.current.x = nextX;
       }
-      if (!checkCollision(playerPosRef.current.x, nextY)) {
+      if (!checkCollision(playerPosRef.current.x, nextY, doorsRef.current)) {
         playerPosRef.current.y = nextY;
       }
 
@@ -365,14 +467,35 @@ export default function Player3D({
     // Apply eye level position (Y = 1.4) + bobbing
     state.camera.position.set(pos3D.x, 1.4 + bob, pos3D.z);
     state.camera.rotation.set(playerPitchRef.current, playerYawRef.current, 0, 'YXZ');
+
+    // Update spotlight and target positioning
+    if (spotLightRef.current && spotLightTargetRef.current) {
+      spotLightRef.current.position.copy(state.camera.position);
+      const targetOffset = new THREE.Vector3(0, 0, -1).applyQuaternion(state.camera.quaternion);
+      spotLightTargetRef.current.position.copy(state.camera.position).add(targetOffset);
+    }
   });
 
   return (
     <group ref={groupRef}>
       <mesh position={[to3DCoords(playerPosRef.current.x, playerPosRef.current.y).x, 0.01, to3DCoords(playerPosRef.current.x, playerPosRef.current.y).z]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.22, 0.25, 16]} />
-        <meshBasicMaterial color="#FFB000" transparent opacity={0.25} />
+        <meshBasicMaterial color="#A63A2B" transparent opacity={0.35} />
       </mesh>
+      <object3D ref={spotLightTargetRef} />
+      <spotLight
+        ref={spotLightRef}
+        target={spotLightTargetRef.current || undefined}
+        castShadow
+        intensity={3.5}
+        distance={20}
+        angle={Math.PI / 5.5}
+        penumbra={0.65}
+        decay={1.6}
+        color="#ffe8c0"
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
     </group>
   );
 }

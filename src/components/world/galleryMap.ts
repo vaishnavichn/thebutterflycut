@@ -31,7 +31,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 30,
     width: 210,
     height: 150,
-    color: 0x6b4545
+    color: 0x2D353C // Muted Concrete
   },
   {
     id: 'Storage_Room',
@@ -40,7 +40,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 30,
     width: 260,
     height: 150,
-    color: 0x5a5a5a
+    color: 0x1E252B // Ash Gray
   },
   {
     id: 'Security_Booth',
@@ -49,7 +49,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 30,
     width: 210,
     height: 150,
-    color: 0x4a5a5a
+    color: 0x4A5768 // Slate Blue
   },
   {
     id: 'West_Wing',
@@ -58,7 +58,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 180,
     width: 210,
     height: 140,
-    color: 0x5a4a62
+    color: 0x1A1F24 // Floor concrete
   },
   {
     id: 'Main_Hall',
@@ -67,7 +67,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 180,
     width: 260,
     height: 280,
-    color: 0x4a4a4a
+    color: 0x2D353C // Muted Concrete
   },
   {
     id: 'East_Wing',
@@ -76,7 +76,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 180,
     width: 210,
     height: 280,
-    color: 0x4a5a4a
+    color: 0x1E252B // Ash Gray
   },
   {
     id: 'Front_Desk',
@@ -85,7 +85,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 320,
     width: 210,
     height: 140,
-    color: 0x5a5a42
+    color: 0x4A5768 // Slate Blue
   },
   {
     id: 'Curators_Office',
@@ -94,7 +94,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 460,
     width: 240,
     height: 150,
-    color: 0x5a4a62
+    color: 0x1A1F24 // Floor concrete
   },
   {
     id: 'Break_Room',
@@ -103,7 +103,7 @@ export const ROOM_ZONES: RoomZone[] = [
     y: 460,
     width: 240,
     height: 150,
-    color: 0x4a5262
+    color: 0x2D353C // Muted Concrete
   }
 ];
 

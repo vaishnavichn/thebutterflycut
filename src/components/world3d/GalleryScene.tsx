@@ -7,7 +7,10 @@ import { HelpCircle, Navigation, ShieldCheck, Eye, AlertTriangle } from 'lucide-
 import GalleryBuilding, { to3DCoords } from './GalleryBuilding';
 import Player3D, { gameAudio } from './Player3D';
 import NPC3D from './NPC3D';
-import { Html } from '@react-three/drei';
+import { Html, ContactShadows, Environment } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from '@react-three/postprocessing';
+
+const DEBUG = false;
 
 // ─────────────────────────────────────────────────────────
 // Atmospheric dust motes floating through the gallery
@@ -81,6 +84,30 @@ export default function GalleryScene({
   const [webGLSupported, setWebGLSupported] = useState(true);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // Doors state: positions are aligned with the gaps in the 2D walls
+  const [doors, setDoors] = useState([
+    { id: 'door_vault_storage', name: 'Vault - Storage Gate', x: 240, y: 150, width: 10, height: 50, isOpen: false },
+    { id: 'door_vault_west', name: 'Vault - West Wing Gate', x: 225, y: 180, width: 30, height: 10, isOpen: false },
+    { id: 'door_west_front', name: 'West Wing - Front Desk Gate', x: 50, y: 320, width: 40, height: 10, isOpen: false },
+    { id: 'door_west_main', name: 'West Wing - Main Hall Gate', x: 240, y: 210, width: 10, height: 50, isOpen: false },
+    { id: 'door_front_main', name: 'Front Desk - Main Hall Gate', x: 240, y: 355, width: 10, height: 70, isOpen: false },
+    { id: 'door_front_curator', name: 'Front Desk - Curator Gate', x: 240, y: 460, width: 10, height: 10, isOpen: false },
+    { id: 'door_curator_main', name: 'Curator - Main Hall Gate', x: 240, y: 535, width: 10, height: 50, isOpen: false },
+    { id: 'door_storage_main', name: 'Storage - Main Hall Gate', x: 295, y: 180, width: 50, height: 10, isOpen: false },
+    { id: 'door_security_storage', name: 'Security - Storage Gate', x: 560, y: 150, width: 10, height: 50, isOpen: false },
+    { id: 'door_security_east', name: 'Security - East Wing Gate', x: 580, y: 180, width: 40, height: 10, isOpen: false },
+    { id: 'door_east_break', name: 'East Wing - Break Room Gate', x: 560, y: 460, width: 10, height: 10, isOpen: false },
+    { id: 'door_break_main', name: 'Break Room - Main Hall Gate', x: 530, y: 535, width: 10, height: 50, isOpen: false },
+    { id: 'door_main_east', name: 'Main Hall - East Wing Gate', x: 560, y: 355, width: 10, height: 70, isOpen: false },
+  ]);
+
+  const toggleDoor = (doorId: string) => {
+    setDoors((prevDoors) =>
+      prevDoors.map((d) => (d.id === doorId ? { ...d, isOpen: !d.isOpen } : d))
+    );
+    onTerminalLog(`[GATE PROTOCOL] Toggled state for: ${doors.find(d => d.id === doorId)?.name}`);
+  };
+
   // 3D Shared refs for high performance first-person interaction calculations
   const player3DPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.4, 0));
   const playerYawRef = useRef<number>(0);
@@ -137,6 +164,7 @@ export default function GalleryScene({
     onTerminalLog('NOIR PROTOCOL 3D Gallery Environment Online.');
     onTerminalLog('CONTROLS: [W/A/S/D] to move. Click/drag or arrow keys to look around.');
     onTerminalLog('Walk up to clues or suspects and press [E] to investigate or interrogate.');
+    onTerminalLog('Use the [OPEN/CLOSE] buttons floating near room gateways to manage security doors.');
   }, []);
 
 
@@ -150,7 +178,7 @@ export default function GalleryScene({
     const handlePointerLockChange = () => {
       const isLocked = document.pointerLockElement !== null;
       setIsPointerLocked(isLocked);
-      console.log(`Pointer lock status changed: ${isLocked ? 'LOCKED' : 'UNLOCKED'}`);
+      if (DEBUG) console.log(`Pointer lock status changed: ${isLocked ? 'LOCKED' : 'UNLOCKED'}`);
     };
 
     const handlePointerLockError = (err: Event) => {
@@ -172,7 +200,7 @@ export default function GalleryScene({
     // Explicitly set calibrated state to dismiss overlay fallback
     setIsCalibrated(true);
 
-    console.log('Pointer lock requested');
+    if (DEBUG) console.log('Pointer lock requested');
     const canvas = containerRef.current?.querySelector('canvas');
     if (canvas) {
       try {
@@ -193,14 +221,14 @@ export default function GalleryScene({
   return (
     <div className="absolute inset-0 flex flex-col">
       {/* Immersive HUD Panel */}
-      <div className="bg-[#0c0c0c] border-b border-[#333] p-3 flex items-center justify-between font-mono text-xs flex-shrink-0">
-        <div className="flex items-center gap-2 text-[#FFB000]">
+      <div className="bg-[#1E252B] border-b border-[#4A5768]/35 p-3 flex items-center justify-between font-mono text-xs flex-shrink-0 text-white shadow-lg">
+        <div className="flex items-center gap-2 text-[#A63A2B]">
           <Navigation size={14} className="animate-pulse" />
-          <span className="uppercase tracking-widest font-black">LUMINA GALLERY HOLOGRAPHIC SCANNER</span>
+          <span className="uppercase tracking-widest font-black">SCANDINAVIAN NOIR SCANNER (SCAND-IV)</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-gray-500 font-bold">CURRENT SECTOR:</span>
-          <span className="px-2 py-0.5 bg-[#FFB000]/10 border border-[#FFB000]/30 text-[#FFB000] font-black rounded-sm animate-pulse uppercase">
+          <span className="text-[#8B9BB4] font-bold">SECTOR READOUT:</span>
+          <span className="px-2 py-0.5 bg-[#A63A2B]/15 border border-[#A63A2B]/40 text-[#A63A2B] font-black rounded-sm animate-pulse uppercase">
             {ROOM_ZONES.find((z) => z.id === currentRoomId)?.name || 'TRANSIT'}
           </span>
         </div>
@@ -209,18 +237,18 @@ export default function GalleryScene({
       {/* Outer wrapper — measured by ResizeObserver for pixel-perfect canvas height */}
       <div ref={wrapperRef} className="flex-1" style={{ position: 'relative', minHeight: '440px' }}>
         {!webGLSupported ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] font-mono text-center p-6">
-            <AlertTriangle size={48} className="text-amber-500 mb-4" />
-            <p className="text-amber-400 text-sm font-bold uppercase tracking-widest mb-2">WebGL Not Available</p>
-            <p className="text-gray-500 text-xs max-w-sm">
-              Your browser or environment does not support WebGL. Try opening the game directly in Chrome or Firefox at <span className="text-amber-400">http://localhost:3000</span>.
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1E252B] font-mono text-center p-6">
+            <AlertTriangle size={48} className="text-[#A63A2B] mb-4" />
+            <p className="text-[#A63A2B] text-sm font-bold uppercase tracking-widest mb-2">WebGL Not Available</p>
+            <p className="text-gray-400 text-xs max-w-sm">
+              Your browser or environment does not support WebGL. Try opening the game directly in Chrome or Firefox at <span className="text-[#A63A2B]">http://localhost:3000</span>.
             </p>
           </div>
         ) : (
           <div
-            ref={containerRef}
-            onClick={handleContainerClick}
-            style={{ position: 'absolute', inset: 0, overflow: 'hidden', cursor: 'pointer' }}
+              ref={containerRef}
+              onClick={handleContainerClick}
+              style={{ position: 'absolute', inset: 0, overflow: 'hidden', cursor: 'pointer' }}
           >
             <Canvas
               frameloop="always"
@@ -228,25 +256,31 @@ export default function GalleryScene({
               camera={{ fov: 75, position: [0, 1.4, -2], near: 0.05, far: 200 }}
               gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
               onCreated={({ gl, scene }) => {
-                gl.setClearColor('#0f0d0b', 1);
-                scene.background = new THREE.Color('#0f0d0b');
-                console.log('[R3F] Canvas created. Size:', gl.domElement.width, 'x', gl.domElement.height);
+                gl.setClearColor('#121518', 1);
+                scene.background = new THREE.Color('#121518');
+                if (DEBUG) console.log('[R3F] Canvas created. Size:', gl.domElement.width, 'x', gl.domElement.height);
               }}
               style={{ width: '100%', height: `${canvasHeight}px`, display: 'block' }}
             >
-              <color attach="background" args={['#0f0d0b']} />
-              <fogExp2 attach="fog" color="#0f0d0b" density={0.038} />
+              <color attach="background" args={['#121518']} />
+              <fogExp2 attach="fog" color="#121518" density={0.042} />
 
               {/* Atmospheric noir lighting */}
-              <ambientLight intensity={0.28} />
-              <hemisphereLight args={['#2a1e0a', '#080608', 0.6]} />
-              <directionalLight position={[8, 18, 6]} intensity={0.7} castShadow shadow-mapSize={1024} />
-              <directionalLight position={[-6, 12, -4]} intensity={0.25} />
-              {/* Warm fill from below for subtle bounce */}
-              <pointLight position={[0, 0.1, 0]} color="#3a2810" intensity={0.4} distance={14} decay={1.5} />
+              <ambientLight intensity={0.22} />
+              <hemisphereLight args={['#4A5768', '#1A1F24', 0.5]} />
+              <directionalLight 
+                position={[8, 18, 6]} 
+                intensity={0.5} 
+                castShadow 
+                shadow-mapSize-width={2048} 
+                shadow-mapSize-height={2048} 
+              />
+              <directionalLight position={[-6, 12, -4]} intensity={0.2} />
+              {/* Cold Slate fill from below for subtle bounce */}
+              <pointLight position={[0, 0.1, 0]} color="#4A5768" intensity={0.3} distance={14} decay={1.5} />
 
               {/* 3D Scene Components */}
-              <GalleryBuilding currentRoomId={currentRoomId} />
+              <GalleryBuilding currentRoomId={currentRoomId} doors={doors} onToggleDoor={toggleDoor} />
 
               <Player3D
                 onPositionUpdate={handlePositionUpdate}
@@ -254,6 +288,7 @@ export default function GalleryScene({
                 player3DPosRef={player3DPosRef}
                 playerYawRef={playerYawRef}
                 playerPitchRef={playerPitchRef}
+                doors={doors}
               />
 
               <NPC3D
@@ -271,24 +306,58 @@ export default function GalleryScene({
 
               {/* Atmospheric floating dust motes */}
               <DustParticles />
+
+              <Environment preset="night" />
+
+              <ContactShadows 
+                position={[0, -0.01, 0]} 
+                opacity={0.65} 
+                scale={24} 
+                blur={2.0} 
+                far={4.5} 
+              />
+
+              <EffectComposer>
+                <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.9} height={300} intensity={0.7} />
+                <Vignette eskil={false} offset={0.15} darkness={1.15} />
+                <Noise opacity={0.025} />
+                <ChromaticAberration offset={new THREE.Vector2(0.0012, 0.0012)} />
+              </EffectComposer>
             </Canvas>
 
-            {/* Sensory Mode Calibration Overlay Prompt */}
+            {/* Sensory Mode Calibration Overlay Prompt / Mini-Tutorial */}
             {!isCalibrated && !isPointerLocked && !isChatOpen && (
-              <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px] flex flex-col items-center justify-center font-mono text-center select-none z-20 animate-fade-in">
-                <div className="border border-[#FFB000]/60 bg-[#0c0c0c]/95 px-6 py-5 max-w-sm flex flex-col items-center gap-3 shadow-[0_0_30px_rgba(255,176,0,0.25)] rounded-sm">
-                  <span className="text-[#FFB000] text-xs font-black tracking-[0.25em] animate-pulse">
-                    [ SENSORY CALIBRATION REQUIRED ]
+              <div className="absolute inset-0 bg-[#1A1F24]/85 backdrop-blur-[3px] flex flex-col items-center justify-center font-mono text-center select-none z-20 animate-fade-in">
+                <div className="border border-[#A63A2B]/60 bg-[#1E252B]/95 px-6 py-5 max-w-sm flex flex-col items-center gap-4 shadow-[0_0_30px_rgba(166,58,43,0.3)] rounded-sm">
+                  <span className="text-[#A63A2B] text-xs font-black tracking-[0.25em] animate-pulse">
+                    [ SYSTEM INITIALIZATION & TUTORIAL ]
                   </span>
-                  <p className="text-[10px] text-gray-400 leading-relaxed uppercase tracking-wider">
-                    Click inside the gallery scanner viewport to sync physical motion sensors and activate first-person controls.
+                  
+                  <div className="w-full flex flex-col gap-2 border-t border-b border-[#4A5768]/25 py-3 my-1 text-[9px] text-[#8B9BB4]">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="px-1.5 py-0.5 bg-[#4A5768]/45 text-white font-bold rounded-xs whitespace-nowrap">W, A, S, D</span>
+                      <span className="text-right">Move Detective</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="px-1.5 py-0.5 bg-[#4A5768]/45 text-white font-bold rounded-xs whitespace-nowrap">Click & Drag</span>
+                      <span className="text-right">Look / Rotate Camera</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="px-1.5 py-0.5 bg-[#A63A2B] text-white font-extrabold rounded-xs whitespace-nowrap">E Key</span>
+                      <span className="text-right">Examine Clue / Interrogate</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[9px] text-gray-400 leading-relaxed uppercase tracking-wider">
+                    Click the button below to sync sensors, capture pointer, and initiate the investigation.
                   </p>
+                  
                   <button
                     type="button"
                     onClick={handleContainerClick}
-                    className="text-[9px] px-3 py-1.5 bg-[#FFB000]/20 hover:bg-[#FFB000]/30 text-[#FFB000] border border-[#FFB000]/50 uppercase tracking-widest font-black cursor-pointer transition-colors"
+                    className="text-[9px] px-3 py-1.5 bg-[#A63A2B]/20 hover:bg-[#A63A2B]/35 text-[#A63A2B] border border-[#A63A2B]/50 uppercase tracking-widest font-black cursor-pointer transition-colors"
                   >
-                    CLICK TO ACTIVATE PROTOCOL
+                    SYNC PROTOCOL SENSORS
                   </button>
                 </div>
               </div>
@@ -296,38 +365,152 @@ export default function GalleryScene({
 
             {/* Pointer Lock Status Fallback Banner */}
             {isCalibrated && !isPointerLocked && !isChatOpen && (
-              <div className="absolute top-2 right-2 bg-amber-950/90 border border-amber-500/50 p-2 font-mono text-[9px] text-amber-300 pointer-events-none select-none z-10 animate-pulse rounded-sm shadow-md max-w-xs">
-                ⚠️ Pointer lock unavailable — Click and drag viewport to look around | WASD to move
+              <div className="absolute top-2 right-2 bg-[#A63A2B]/90 border border-[#A63A2B]/50 p-2 font-mono text-[9px] text-white pointer-events-none select-none z-10 animate-pulse rounded-sm shadow-md max-w-xs">
+                ⚠️ Calibration Active — Click and drag viewport to look around | WASD to move
               </div>
             )}
 
-            {/* HUD Overlay guides */}
-            <div className="absolute top-2 left-2 bg-[#0c0c0c]/90 border border-[#333] p-2 text-[9px] font-mono text-[#aaa] pointer-events-none select-none z-10 flex flex-col gap-1 shadow-md">
-              <div className="flex items-center gap-1.5">
-                <span className="px-1 py-0.2 bg-[#333] text-white font-bold rounded-xs">W,A,S,D</span>
-                <span>Walk around</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="px-1.5 py-0.2 bg-[#333] text-white font-bold rounded-xs">Click + Drag</span> / <span className="px-1 py-0.2 bg-[#333] text-white font-bold rounded-xs">▲▼◀▶</span>
-                <span>Look Around</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="px-1.5 py-0.2 bg-[#ffb000] text-black font-extrabold rounded-xs">E</span>
-                <span>Investigate Clue / Interrogate NPC</span>
-              </div>
-            </div>
+            {/* Minimap Radar HUD */}
+            {isCalibrated && (
+              <div className="absolute bottom-2 right-2 z-10 select-none pointer-events-none">
+                {/* Minimap Container */}
+                <div className="bg-[#0a0f14]/92 border border-[#4A5768]/40 rounded-sm shadow-[0_0_20px_rgba(0,0,0,0.6)] overflow-hidden backdrop-blur-sm">
+                  {/* Minimap Header */}
+                  <div className="px-2 py-0.5 bg-[#1E252B] border-b border-[#4A5768]/25 flex items-center justify-between">
+                    <span className="text-[7px] font-mono text-[#A63A2B] font-bold tracking-[0.15em] uppercase">SECTOR MAP</span>
+                    <span className="text-[6px] font-mono text-[#4A5768]">LIVE</span>
+                  </div>
+                  
+                  {/* SVG Minimap Canvas */}
+                  <svg
+                    width="160"
+                    height="120"
+                    viewBox="0 0 800 600"
+                    className="block"
+                    style={{ background: '#0d1117' }}
+                  >
+                    {/* Room zone rectangles */}
+                    {ROOM_ZONES.map((zone) => {
+                      const isCurrent = zone.id === currentRoomId;
+                      return (
+                        <rect
+                          key={zone.id}
+                          x={zone.x}
+                          y={zone.y}
+                          width={zone.width}
+                          height={zone.height}
+                          fill={isCurrent ? 'rgba(166, 58, 43, 0.15)' : 'rgba(74, 87, 104, 0.08)'}
+                          stroke={isCurrent ? '#A63A2B' : '#4A5768'}
+                          strokeWidth={isCurrent ? 3 : 1}
+                          strokeOpacity={isCurrent ? 0.8 : 0.3}
+                        />
+                      );
+                    })}
 
-            {/* Legend */}
-            <div className="absolute bottom-2 right-2 bg-[#0c0c0c]/90 border border-[#333] p-2 text-[9px] font-mono text-[#aaa] pointer-events-none select-none z-10 flex flex-col gap-1 shadow-md">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full border border-purple-500 bg-purple-950/40"></span>
-                <span>Suspect — walk close and press E</span>
+                    {/* Room labels */}
+                    {ROOM_ZONES.map((zone) => (
+                      <text
+                        key={`label-${zone.id}`}
+                        x={zone.x + zone.width / 2}
+                        y={zone.y + zone.height / 2}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill={zone.id === currentRoomId ? '#A63A2B' : '#4A5768'}
+                        fontSize="24"
+                        fontFamily="monospace"
+                        fontWeight={zone.id === currentRoomId ? 'bold' : 'normal'}
+                        opacity={zone.id === currentRoomId ? 1 : 0.5}
+                      >
+                        {zone.name.length > 10 ? zone.name.substring(0, 10) + '…' : zone.name}
+                      </text>
+                    ))}
+
+                    {/* Clue marker dots */}
+                    {CLUE_OBJECTS.map((clue) => {
+                      const isFound = discoveredClues.some(dc => dc.id === clue.id);
+                      return (
+                        <circle
+                          key={`minimap-clue-${clue.id}`}
+                          cx={clue.x}
+                          cy={clue.y}
+                          r={isFound ? 6 : 8}
+                          fill={isFound ? '#4A5768' : '#A63A2B'}
+                          opacity={isFound ? 0.4 : 0.9}
+                        >
+                          {!isFound && (
+                            <animate attributeName="opacity" values="0.9;0.4;0.9" dur="1.5s" repeatCount="indefinite" />
+                          )}
+                        </circle>
+                      );
+                    })}
+
+                    {/* Player position dot */}
+                    <circle
+                      cx={playerCoords.x}
+                      cy={playerCoords.y}
+                      r={10}
+                      fill="#00ffd2"
+                      opacity={0.9}
+                    >
+                      <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite" />
+                    </circle>
+
+                    {/* Player direction cone */}
+                    {(() => {
+                      const yaw = playerYawRef.current || 0;
+                      // Convert yaw to 2D map direction (yaw 0 = looking along -Z in 3D = looking up on map)
+                      const coneLength = 45;
+                      const coneSpread = 0.35; // radians
+                      const dx = Math.sin(yaw);
+                      const dy = -Math.cos(yaw);
+                      const tipX = playerCoords.x + dx * coneLength;
+                      const tipY = playerCoords.y + dy * coneLength;
+                      const leftX = playerCoords.x + Math.sin(yaw - coneSpread) * coneLength * 0.7;
+                      const leftY = playerCoords.y - Math.cos(yaw - coneSpread) * coneLength * 0.7;
+                      const rightX = playerCoords.x + Math.sin(yaw + coneSpread) * coneLength * 0.7;
+                      const rightY = playerCoords.y - Math.cos(yaw + coneSpread) * coneLength * 0.7;
+                      return (
+                        <polygon
+                          points={`${playerCoords.x},${playerCoords.y} ${leftX},${leftY} ${tipX},${tipY} ${rightX},${rightY}`}
+                          fill="rgba(0, 255, 210, 0.15)"
+                          stroke="#00ffd2"
+                          strokeWidth={1.5}
+                          strokeOpacity={0.5}
+                        />
+                      );
+                    })()}
+
+                    {/* Radar sweep overlay animation */}
+                    <defs>
+                      <radialGradient id="radar-grad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#00ffd2" stopOpacity="0.08" />
+                        <stop offset="100%" stopColor="#00ffd2" stopOpacity="0" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx={playerCoords.x} cy={playerCoords.y} r="80" fill="url(#radar-grad)">
+                      <animate attributeName="r" values="60;120;60" dur="3s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.4;0;0.4" dur="3s" repeatCount="indefinite" />
+                    </circle>
+                  </svg>
+
+                  {/* Legend Row */}
+                  <div className="px-2 py-1 border-t border-[#4A5768]/20 flex items-center gap-3 text-[7px] font-mono text-[#8B9BB4]">
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00ffd2]"></span>
+                      <span>You</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-[#A63A2B] animate-pulse"></span>
+                      <span>Evidence</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full border border-[#A63A2B] bg-transparent"></span>
+                      <span>Current</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-[#ff4444] animate-pulse"></span>
-                <span>Evidence — walk close and press E</span>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -476,18 +659,18 @@ function SingleClue({
   const isFootprint = clue.id === 'storage_footprint';
   const isPaper = clue.id === 'signout_sheet' || clue.id === 'cleaning_schedule' || clue.id === 'security_maintenance_note' || clue.id === 'draft_letter';
 
-  // Bright red undiscovered, cyber-teal discovered
-  const activeColor = isDiscovered ? '#00ffd2' : (isHighlighted ? '#ffb000' : '#d13c3c');
-  const emissiveColor = isDiscovered ? '#00ffd2' : (isHighlighted ? '#ffb000' : '#661111');
+  // Muted Slate Blue when discovered, Dried Blood when undiscovered or highlighted
+  const activeColor = isDiscovered ? '#4A5768' : (isHighlighted ? '#D34E3C' : '#A63A2B');
+  const emissiveColor = isDiscovered ? '#1A1F24' : (isHighlighted ? '#D34E3C' : '#5A2018');
 
   return (
     <group position={[pos3D.x, pos3D.y, pos3D.z]}>
       {/* Immersive 3D HUD inspection target prompt */}
       {isHighlighted && !isDiscovered && (
         <Html distanceFactor={6} position={[0, 0.45, 0]} center>
-          <div className="bg-[#0c0c0c]/95 border border-[#ffb000] text-[#ffb000] font-mono px-3 py-1.5 rounded-xs text-[10px] whitespace-nowrap shadow-[0_0_15px_rgba(255,176,0,0.45)] flex flex-col items-center gap-0.5 animate-bounce select-none pointer-events-none">
-            <span className="font-extrabold tracking-widest text-[11px]">[ E ] INVESTIGATE COGNITIVE TRACE</span>
-            <span className="text-gray-400 text-[8px]">{clue.title.toUpperCase()}</span>
+          <div className="bg-[#1E252B]/95 border border-[#A63A2B] text-[#A63A2B] font-mono px-3 py-1.5 rounded-xs text-[10px] whitespace-nowrap shadow-[0_0_15px_rgba(166,58,43,0.45)] flex flex-col items-center gap-0.5 animate-bounce select-none pointer-events-none">
+            <span className="font-extrabold tracking-widest text-[11px]">[ E ] EXAMINE EVIDENCE TRACE</span>
+            <span className="text-[#8B9BB4] text-[8px]">{clue.title.toUpperCase()}</span>
           </div>
         </Html>
       )}
