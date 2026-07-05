@@ -1,0 +1,4 @@
+cognee[groq,fastembed]
+fastapi
+uvicorn[standard]
+python-dotenv
