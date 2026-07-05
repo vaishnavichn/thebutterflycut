@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.example
+.cognee_system
+.pytest_cache
+.venv
+venv

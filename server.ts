@@ -8,7 +8,7 @@ import Groq from 'groq-sdk';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Cognee memory microservice (Python/FastAPI) - handles per-suspect memory
 const COGNEE_URL = process.env.COGNEE_URL || 'http://localhost:8001';
